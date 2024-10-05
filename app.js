@@ -27,27 +27,39 @@ app.get('/soil-moisture-data', (req, res) => {
     // Create a region around the point (e.g., 100 km buffer)
     const region = point.buffer(100000); // 100 km buffer around the point
 
-    const dataset = ee.ImageCollection('MODIS/061/MOD16A2GF')
-                      .select('ET')
-                      .filterDate('2023-09-03', '2024-10-03')
-                      .mean();
-                      //.clip(region);
+    const start_date = '2023-10-03'
+    const end_date = '2024-10-03'
 
-    let stats = dataset.reduceRegion({
-        reducer: ee.Reducer.minMax(), // Calculate min and max
+    const ET = ee.ImageCollection('MODIS/061/MOD16A2GF')
+                      .filterDate(start_date, end_date)
+                      .select('ET')
+                      .mean()
+                      .clip(region);
+
+    const precipitation = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY')
+                      .filterDate(start_date, end_date)
+                      .select('precipitation')
+                      .mean()
+                      .clip(region);
+
+    // Calculate the Water Balance Index (WBI)
+    let waterBalanceIndex = ET.subtract(precipitation).rename('WBI');
+
+    let waterBalanceIndex_stats = waterBalanceIndex.reduceRegion({
+        reducer: ee.Reducer.percentile([2, 98]), // Calculate min and max
         geometry: region,
-        scale: 500, // Adjust scale as needed (in meters)
+        scale: 5566, // Adjust scale as needed (in meters)
         maxPixels: 1e9 // Increase if needed
     });
 
     const visParams = {
-        min: stats.get('ET_min'), // Minimum value of ET (in mm/day)
-        max: stats.get('ET_max'), // Maximum value of ET (in mm/day) - adjust based on your data range
-        palette: ['blue', 'green', 'yellow', 'orange', 'red'] // Palette for low to high ET values
+        min: waterBalanceIndex_stats.get('WBI_p2'), // Minimum value of WBI (in mm/day)
+        max: waterBalanceIndex_stats.get('WBI_p98'), // Maximum value of WBI (in mm/day) - adjust based on your data range
+        palette: ['red', 'white', 'blue'] // Palette for low to high WBI values
     };
 
     // Use getMapId to obtain mapId and token
-    const mapIdObject = dataset.getMapId(visParams);
+    const mapIdObject = ET.getMapId(visParams);
     const tileUrl = mapIdObject.urlFormat;
 
     // Respond with the tile URL

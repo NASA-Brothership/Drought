@@ -26,7 +26,7 @@
         longitude = position.coords.longitude;
 
         // Initialize the map
-        map = L.map('map').setView([latitude, longitude], 7);
+        map = L.map('map').setView([latitude, longitude], 15);
 
         // Add a base layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -40,7 +40,7 @@
             L.tileLayer(data.url, {
               opacity: 0.5,
               attribution: 'NASA SMAP Soil Moisture Data',
-              maxZoom: 12
+              maxZoom: 20
             }).addTo(map);
           })
           .catch(error => console.error('Error loading data:', error));
